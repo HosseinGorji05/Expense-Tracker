@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expense Tracker</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1c1e21;
+    --muted: #6b7280;
+    --border: #e3e5e8;
+    --accent: #2f6feb;
+    --accent-text: #ffffff;
+    --danger: #d13438;
+    --ok: #1a7f4b;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181c; --card: #1f2226; --text: #e6e8eb; --muted: #9aa0a6;
+      --border: #33363b; --accent: #4c8dff; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+  header h1 { margin: 0 0 .25rem; font-size: 1.6rem; }
+  header p { margin: 0 0 1.5rem; color: var(--muted); font-size: .9rem; }
+
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow); }
+  .stat .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .stat .value { font-size: 1.5rem; font-weight: 700; margin-top: .35rem; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; }
+  .card h2 { margin: 0 0 1rem; font-size: 1rem; }
+
+  form.add { display: grid; grid-template-columns: 2fr 1fr 1.2fr 1.2fr auto; gap: .75rem; align-items: end; }
+  @media (max-width: 640px) { form.add { grid-template-columns: 1fr 1fr; } .summary { grid-template-columns: 1fr; } }
+  label { display: flex; flex-direction: column; gap: .3rem; font-size: .78rem; color: var(--muted); }
+  input, select {
+    padding: .55rem .6rem; font-size: .9rem; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--bg); color: var(--text);
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+  button {
+    padding: .6rem 1rem; font-size: .9rem; font-weight: 600; border: none; border-radius: 8px;
+    background: var(--accent); color: var(--accent-text); cursor: pointer;
+  }
+  button:hover { filter: brightness(1.07); }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+  button.link-danger { background: transparent; color: var(--danger); padding: .3rem .5rem; font-size: .8rem; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+  .chip {
+    padding: .35rem .7rem; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font-size: .82rem; cursor: pointer;
+  }
+  .chip.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: .65rem .5rem; border-bottom: 1px solid var(--border); font-size: .9rem; }
+  th { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  td.amount, th.amount { text-align: right; font-variant-numeric: tabular-nums; }
+  .cat-tag { display: inline-block; padding: .15rem .5rem; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-size: .8rem; }
+  .empty { text-align: center; color: var(--muted); padding: 2rem 0; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%) translateY(200%);
+    background: var(--text); color: var(--bg); padding: .7rem 1.1rem; border-radius: 8px;
+    font-size: .88rem; transition: transform .25s ease; max-width: 90vw;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.error { background: var(--danger); color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💰 Expense Tracker</h1>
+    <p>Add expenses, filter by category, and keep an eye on the total.</p>
+  </header>
+
+  <section class="summary">
+    <div class="stat"><div class="label">Total spent</div><div class="value" id="s-total">$0.00</div></div>
+    <div class="stat"><div class="label">Expenses</div><div class="value" id="s-count">0</div></div>
+    <div class="stat"><div class="label">Top category</div><div class="value" id="s-top">—</div></div>
+  </section>
+
+  <div class="card">
+    <h2>Add an expense</h2>
+    <form class="add" id="add-form">
+      <label>Description <input name="description" placeholder="e.g. Weekly groceries" required></label>
+      <label>Amount <input name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required></label>
+      <label>Category <input name="category" placeholder="e.g. Food" list="cats" required></label>
+      <label>Date <input name="date" type="date" required></label>
+      <button type="submit">Add</button>
+    </form>
+    <datalist id="cats"></datalist>
+  </div>
+
+  <div class="card">
+    <div class="chips" id="chips"></div>
+    <table>
+      <thead>
+        <tr><th>Description</th><th>Category</th><th>Date</th><th class="amount">Amount</th><th></th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>No expenses yet — add your first one above.</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const api = "/api/expenses";
+const $ = s => document.querySelector(s);
+let allItems = [];        // unfiltered, for summary + chips
+let activeCategory = "";   // "" = All
+
+const money = n => "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function toast(msg, isError = false) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.toggle("error", isError);
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+async function loadAll() {
+  const res = await fetch(api);
+  allItems = await res.json();
+  renderChips();
+  renderSummary();
+  renderTable();
+}
+
+function visibleItems() {
+  return activeCategory ? allItems.filter(e => e.category === activeCategory) : allItems;
+}
+
+function renderSummary() {
+  const total = allItems.reduce((s, e) => s + e.amount, 0);
+  $("#s-total").textContent = money(total);
+  $("#s-count").textContent = allItems.length;
+  const byCat = {};
+  allItems.forEach(e => byCat[e.category] = (byCat[e.category] || 0) + e.amount);
+  const top = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+  $("#s-top").textContent = top ? `${top[0]} (${money(top[1])})` : "—";
+}
+
+function renderChips() {
+  const cats = [...new Set(allItems.map(e => e.category))].sort();
+  $("#cats").innerHTML = cats.map(c => `<option value="${esc(c)}">`).join("");
+  const chips = $("#chips");
+  chips.innerHTML = "";
+  const make = (label, value) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (value === activeCategory ? " active" : "");
+    b.textContent = label;
+    b.onclick = () => { activeCategory = value; renderChips(); renderTable(); };
+    return b;
+  };
+  chips.appendChild(make("All", ""));
+  cats.forEach(c => chips.appendChild(make(c, c)));
+}
+
+function renderTable() {
+  const items = visibleItems().slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+  const tbody = $("#rows");
+  tbody.innerHTML = "";
+  $("#empty").hidden = allItems.length !== 0;
+  for (const e of items) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${esc(e.description)}</td>
+      <td><span class="cat-tag">${esc(e.category)}</span></td>
+      <td>${e.date}</td>
+      <td class="amount">${money(e.amount)}</td>
+      <td class="amount"><button class="link-danger">Delete</button></td>`;
+    tr.querySelector("button").onclick = () => del(e);
+    tbody.appendChild(tr);
+  }
+}
+
+$("#add-form").onsubmit = async ev => {
+  ev.preventDefault();
+  const f = ev.target;
+  const body = {
+    description: f.description.value.trim(),
+    amount: parseFloat(f.amount.value),
+    category: f.category.value.trim(),
+    date: f.date.value
+  };
+  const res = await fetch(api, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (res.status === 201) {
+    f.reset();
+    f.date.valueAsDate = new Date();
+    await loadAll();
+    toast("Expense added");
+  } else if (res.status === 400) {
+    const err = await res.json().catch(() => null);
+    const msg = err?.errors?.map(e => e.defaultMessage).join(" · ") || "Please check your input";
+    toast(msg, true);
+  } else {
+    toast("Something went wrong (HTTP " + res.status + ")", true);
+  }
+};
+
+async function del(e) {
+  if (!confirm(`Delete "${e.description}" (${money(e.amount)})?`)) return;
+  const res = await fetch(`${api}/${e.id}`, { method: "DELETE" });
+  if (res.ok || res.status === 404) {
+    await loadAll();
+    toast("Expense deleted");
+  } else {
+    toast("Could not delete (HTTP " + res.status + ")", true);
+  }
+}
+
+$("[name=date]").valueAsDate = new Date();
+loadAll();
+</script>
+</body>
+</html>
