@@ -1,6 +1,9 @@
 package com.hosseingorji.expensetracker.controller;
 
+import com.hosseingorji.expensetracker.dto.CategorizeRequest;
+import com.hosseingorji.expensetracker.dto.CategorizeResponse;
 import com.hosseingorji.expensetracker.model.Expense;
+import com.hosseingorji.expensetracker.service.CategorizationService;
 import com.hosseingorji.expensetracker.service.ExpenseService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -12,9 +15,11 @@ import java.util.List;
 public class ExpenseController {
 
     private final ExpenseService service;
+    private final CategorizationService categorizationService;
 
-    public ExpenseController(ExpenseService service) {
+    public ExpenseController(ExpenseService service, CategorizationService categorizationService) {
         this.service = service;
+        this.categorizationService = categorizationService;
     }
 
     @GetMapping
@@ -43,6 +48,12 @@ public class ExpenseController {
         return service.update(id, expense)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/categorize")
+    public ResponseEntity<CategorizeResponse> categorize(@Valid @RequestBody CategorizeRequest request) {
+        String category = categorizationService.categorize(request.getDescription());
+        return ResponseEntity.ok(new CategorizeResponse(category, "AI-suggested based on description"));
     }
 
     @DeleteMapping("/{id}")

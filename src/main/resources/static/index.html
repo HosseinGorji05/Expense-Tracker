@@ -65,7 +65,24 @@
   th { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
   td.amount, th.amount { text-align: right; font-variant-numeric: tabular-nums; }
   .cat-tag { display: inline-block; padding: .15rem .5rem; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-size: .8rem; }
+  .cat-field { display: flex; gap: .35rem; }
+  .cat-field input { flex: 1; min-width: 0; }
+  .cat-field button { padding: .5rem .6rem; }
   .empty { text-align: center; color: var(--muted); padding: 2rem 0; }
+
+  form.budget { display: grid; grid-template-columns: 1fr 1fr auto; gap: .75rem; align-items: end; }
+  @media (max-width: 640px) { form.budget { grid-template-columns: 1fr 1fr; } }
+  .bar { height: 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; margin: 1rem 0 .4rem; }
+  .bar > span { display: block; height: 100%; background: var(--accent); }
+  .bar.over > span { background: var(--danger); }
+  .advice-summary { font-size: .9rem; margin: .2rem 0 1rem; }
+  .badge { display: inline-block; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+    padding: .1rem .45rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); margin-left: .5rem; }
+  .sugg { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid var(--border); font-size: .9rem; }
+  .sugg:last-child { border-bottom: none; }
+  .sugg .why { color: var(--muted); font-size: .82rem; }
+  .sugg .cut { font-weight: 700; color: var(--danger); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .projected { margin-top: 1rem; font-size: .9rem; font-weight: 600; }
 
   #toast {
     position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%) translateY(200%);
@@ -80,7 +97,7 @@
 <div class="wrap">
   <header>
     <h1>💰 Expense Tracker</h1>
-    <p>Add expenses, filter by category, and keep an eye on the total.</p>
+    <p>Add expenses, set a monthly budget, and get an AI plan for where to cut.</p>
   </header>
 
   <section class="summary">
@@ -94,11 +111,31 @@
     <form class="add" id="add-form">
       <label>Description <input name="description" placeholder="e.g. Weekly groceries" required></label>
       <label>Amount <input name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required></label>
-      <label>Category <input name="category" placeholder="e.g. Food" list="cats" required></label>
+      <label>Category
+        <span class="cat-field">
+          <input name="category" placeholder="e.g. Food" list="cats" required>
+          <button type="button" id="suggest" class="ghost" title="Suggest a category from the description">✨</button>
+        </span>
+      </label>
       <label>Date <input name="date" type="date" required></label>
       <button type="submit">Add</button>
     </form>
     <datalist id="cats"></datalist>
+  </div>
+
+  <div class="card">
+    <h2>Monthly budget &amp; cut plan</h2>
+    <form class="budget" id="budget-form">
+      <label>Monthly budget <input name="monthlyBudget" type="number" step="0.01" min="0.01" placeholder="e.g. 2000" required></label>
+      <label>Amount to cut this month <input name="cutTarget" type="number" step="0.01" min="0" placeholder="e.g. 300" required></label>
+      <button type="submit" id="advice-btn">Get AI advice</button>
+    </form>
+    <div id="advice" hidden>
+      <div class="bar" id="advice-bar"><span></span></div>
+      <div class="advice-summary" id="advice-summary"></div>
+      <div id="advice-list"></div>
+      <div class="projected" id="advice-projected"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -210,7 +247,7 @@ $("#add-form").onsubmit = async ev => {
     toast("Expense added");
   } else if (res.status === 400) {
     const err = await res.json().catch(() => null);
-    const msg = err?.errors?.map(e => e.defaultMessage).join(" · ") || "Please check your input";
+    const msg = err?.errors?.map(e => e.message).join(" · ") || "Please check your input";
     toast(msg, true);
   } else {
     toast("Something went wrong (HTTP " + res.status + ")", true);
@@ -226,6 +263,95 @@ async function del(e) {
   } else {
     toast("Could not delete (HTTP " + res.status + ")", true);
   }
+}
+
+$("#suggest").onclick = async () => {
+  const desc = $("#add-form").description.value.trim();
+  if (!desc) { toast("Type a description first", true); return; }
+  const btn = $("#suggest");
+  btn.disabled = true; btn.textContent = "…";
+  try {
+    const res = await fetch(api + "/categorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: desc })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      $("#add-form").category.value = data.suggestedCategory;
+      toast("Suggested: " + data.suggestedCategory);
+    } else {
+      toast("Could not suggest a category", true);
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = "✨";
+  }
+};
+
+// --- budget & cut plan ---
+
+const bform = $("#budget-form");
+try {
+  const saved = JSON.parse(localStorage.getItem("budgetPrefs") || "{}");
+  if (saved.monthlyBudget) bform.monthlyBudget.value = saved.monthlyBudget;
+  if (saved.cutTarget) bform.cutTarget.value = saved.cutTarget;
+} catch (_) {}
+
+bform.onsubmit = async ev => {
+  ev.preventDefault();
+  const monthlyBudget = parseFloat(bform.monthlyBudget.value);
+  const cutTarget = parseFloat(bform.cutTarget.value);
+  try { localStorage.setItem("budgetPrefs", JSON.stringify({ monthlyBudget, cutTarget })); } catch (_) {}
+
+  const btn = $("#advice-btn");
+  btn.disabled = true; btn.textContent = "Thinking…";
+  try {
+    const res = await fetch("/api/budget/advice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ monthlyBudget, cutTarget })
+    });
+    if (res.status === 400) { toast("Check the budget values", true); return; }
+    if (!res.ok) { toast("Could not get advice (HTTP " + res.status + ")", true); return; }
+    renderAdvice(await res.json());
+  } finally {
+    btn.disabled = false; btn.textContent = "Get AI advice";
+  }
+};
+
+function renderAdvice(a) {
+  $("#advice").hidden = false;
+
+  const pct = a.monthlyBudget > 0 ? Math.min(100, (a.currentSpend / a.monthlyBudget) * 100) : 0;
+  const bar = $("#advice-bar");
+  bar.classList.toggle("over", a.currentSpend > a.monthlyBudget);
+  bar.firstElementChild.style.width = pct + "%";
+
+  const tag = a.aiGenerated
+    ? '<span class="badge">AI plan</span>'
+    : '<span class="badge">estimated</span>';
+  $("#advice-summary").innerHTML = esc(a.summary) + tag;
+
+  const list = $("#advice-list");
+  list.innerHTML = "";
+  if (!a.suggestions.length) {
+    list.innerHTML = '<div class="sugg"><span class="why">No cut suggestions — you\'re within range.</span></div>';
+  }
+  for (const s of a.suggestions) {
+    const div = document.createElement("div");
+    div.className = "sugg";
+    div.innerHTML = `
+      <span>
+        <strong>${esc(s.category)}</strong>
+        <span class="why"> — now ${money(s.currentSpend)}. ${esc(s.reason || "")}</span>
+      </span>
+      <span class="cut">−${money(s.suggestedCut)}</span>`;
+    list.appendChild(div);
+  }
+
+  $("#advice-projected").textContent =
+    `Cut ${money(a.totalSuggestedCuts)} total → projected spend ${money(a.projectedSpendAfterCuts)} `
+    + `(budget ${money(a.monthlyBudget)})`;
 }
 
 $("[name=date]").valueAsDate = new Date();

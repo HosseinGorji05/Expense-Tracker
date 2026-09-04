@@ -12,6 +12,7 @@ public class Expense {
     private Long id;
 
     @NotBlank(message = "Description is required")
+    @Size(max = 200, message = "Description is too long")
     private String description;
 
     @NotNull(message = "Amount is required")
@@ -19,6 +20,7 @@ public class Expense {
     private Double amount;
 
     @NotBlank(message = "Category is required")
+    @Size(max = 60, message = "Category is too long")
     private String category;
 
     @NotNull(message = "Date is required")

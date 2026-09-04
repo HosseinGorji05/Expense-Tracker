@@ -176,4 +176,28 @@ public class ExpenseControllerTest {
         mockMvc.perform(delete("/api/expenses/99999"))
                 .andExpect(status().isNotFound());
     }
+
+    // --- categorize ---
+    // The endpoint always returns one of the allowed categories. The AI call
+    // itself (and the fallback behaviour) is covered in CategorizationServiceTest
+    // with a mocked HTTP server; here we only assert the contract.
+
+    @Test
+    void categorize_withValidDescription_returns200AndAllowedCategory() throws Exception {
+        mockMvc.perform(post("/api/expenses/categorize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"description\":\"Uber Eats order, $23.50\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestedCategory", org.hamcrest.Matchers.in(
+                        com.hosseingorji.expensetracker.service.CategorizationService.ALLOWED_CATEGORIES)))
+                .andExpect(jsonPath("$.reasoning").isNotEmpty());
+    }
+
+    @Test
+    void categorize_withBlankDescription_returns400() throws Exception {
+        mockMvc.perform(post("/api/expenses/categorize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"description\":\"\"}"))
+                .andExpect(status().isBadRequest());
+    }
 }
