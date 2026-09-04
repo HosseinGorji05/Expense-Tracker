@@ -6,16 +6,16 @@ A small REST API for tracking personal expenses — each expense has a descripti
 
 ## Tech stack
 
-| Area | Choice |
-|---|---|
-| Language | Java 17 |
-| Framework | Spring Boot 4 (Web MVC) |
+| Area        | Choice                           |
+| ----------- | -------------------------------- |
+| Language    | Java 17                          |
+| Framework   | Spring Boot 4 (Web MVC)          |
 | Persistence | Spring Data JPA + H2 (in-memory) |
-| Validation | Jakarta Bean Validation |
-| Testing | JUnit 5 + Spring MockMvc |
-| Build | Maven (wrapper included) |
-| Container | Docker (multi-stage build) |
-| CI | GitHub Actions |
+| Validation  | Jakarta Bean Validation          |
+| Testing     | JUnit 5 + Spring MockMvc         |
+| Build       | Maven (wrapper included)         |
+| Container   | Docker (multi-stage build)       |
+| CI          | GitHub Actions                   |
 
 ## Run it locally
 
@@ -50,24 +50,24 @@ docker run -p 8080:8080 expense-tracker
 
 Base path: `/api/expenses`
 
-| Method | Path | Description | Success | Errors |
-|---|---|---|---|---|
-| `GET` | `/api/expenses` | List all expenses | `200` | — |
-| `GET` | `/api/expenses?category={c}` | List expenses in a category | `200` | — |
-| `GET` | `/api/expenses/{id}` | Get one expense | `200` | `404` if not found |
-| `POST` | `/api/expenses` | Create an expense | `201` | `400` on validation failure |
-| `PUT` | `/api/expenses/{id}` | Replace an expense | `200` | `400` invalid, `404` not found |
-| `DELETE` | `/api/expenses/{id}` | Delete an expense | `204` | `404` if not found |
+| Method   | Path                         | Description                 | Success | Errors                         |
+| -------- | ---------------------------- | --------------------------- | ------- | ------------------------------ |
+| `GET`    | `/api/expenses`              | List all expenses           | `200`   | —                              |
+| `GET`    | `/api/expenses?category={c}` | List expenses in a category | `200`   | —                              |
+| `GET`    | `/api/expenses/{id}`         | Get one expense             | `200`   | `404` if not found             |
+| `POST`   | `/api/expenses`              | Create an expense           | `201`   | `400` on validation failure    |
+| `PUT`    | `/api/expenses/{id}`         | Replace an expense          | `200`   | `400` invalid, `404` not found |
+| `DELETE` | `/api/expenses/{id}`         | Delete an expense           | `204`   | `404` if not found             |
 
 ### Expense fields
 
-| Field | Type | Rules |
-|---|---|---|
-| `id` | number | assigned by the server |
-| `description` | string | required, not blank |
-| `amount` | number | required, greater than zero |
-| `category` | string | required, not blank |
-| `date` | string (`YYYY-MM-DD`) | required |
+| Field         | Type                  | Rules                       |
+| ------------- | --------------------- | --------------------------- |
+| `id`          | number                | assigned by the server      |
+| `description` | string                | required, not blank         |
+| `amount`      | number                | required, greater than zero |
+| `category`    | string                | required, not blank         |
+| `date`        | string (`YYYY-MM-DD`) | required                    |
 
 ## Project layout
 
@@ -84,3 +84,5 @@ src/test/java/.../ExpenseControllerTest.java   MockMvc integration tests
 ## CI
 
 Every push and pull request to `main` runs `./mvnw test` and builds the Docker image via GitHub Actions ([`.github/workflows/test.yml`](.github/workflows/test.yml)).
+
+H
