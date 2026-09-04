@@ -15,5 +15,8 @@ RUN ./mvnw -B -q clean package -DskipTests
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
+# Run as an unprivileged user, not root.
+RUN useradd --system --no-create-home app && chown app:app app.jar
+USER app
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

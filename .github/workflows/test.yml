@@ -21,6 +21,8 @@ jobs:
           cache: maven
 
       - name: Run tests
+        # No GROQ_API_KEY: the suite mocks every Groq HTTP call, so the secret is
+        # not needed here and is kept out of CI to avoid exposing it to PR builds.
         run: ./mvnw -B test
 
       - name: Build Docker image
